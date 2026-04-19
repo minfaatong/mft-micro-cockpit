@@ -103,7 +103,7 @@ func Render(s domain.DashboardSnapshot, width, height int) string {
 		valueStyle.Render(bytesHuman(s.SwapTotalBytes)),
 	)
 	diskLine := fmt.Sprintf(
-		"%s %s %s  %s %s  %s/%s",
+		"%s %s %s  %s  %s/%s",
 		labelStyle.Render("dsk "),
 		meter(diskPct, meterWidth),
 		stylePercent(diskPct).Render(fmt.Sprintf("%6.2f%%", diskPct)),
