@@ -6,6 +6,7 @@ import "time"
 type DashboardSnapshot struct {
 	CollectedAt time.Time
 	Hostname    string
+	HostIP      string
 	OSPretty    string
 	Kernel      string
 	Uptime      time.Duration

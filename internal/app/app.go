@@ -1,9 +1,11 @@
 package app
 
 import (
+	"os"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/x/term"
 	"github.com/minfaatong/mft-micro-cockpit/internal/collector"
 	"github.com/minfaatong/mft-micro-cockpit/internal/domain"
 	"github.com/minfaatong/mft-micro-cockpit/internal/ui"
@@ -36,14 +38,16 @@ func newModel() model {
 }
 
 func (m model) Init() tea.Cmd {
-	return tea.Batch(tickCmd(), collectCmd(m.collector))
+	return tea.Batch(tickCmd(), collectCmd(m.collector), tea.WindowSize(), termSizeCmd())
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		m.width = msg.Width
-		m.height = msg.Height
+		if msg.Width > 0 && msg.Height > 0 {
+			m.width = msg.Width
+			m.height = msg.Height
+		}
 		return m, nil
 	case tea.KeyMsg:
 		switch msg.String() {
@@ -53,7 +57,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, collectCmd(m.collector)
 		}
 	case tickMsg:
-		return m, tea.Batch(tickCmd(), collectCmd(m.collector))
+		return m, tea.Batch(tickCmd(), collectCmd(m.collector), termSizeCmd())
 	case snapshotMsg:
 		m.lastErr = msg.err
 		if msg.err == nil {
@@ -82,4 +86,38 @@ func collectCmd(c *collector.Collector) tea.Cmd {
 		s, err := c.Snapshot()
 		return snapshotMsg{snapshot: s, err: err}
 	}
+}
+
+func termSizeCmd() tea.Cmd {
+	return func() tea.Msg {
+		w, h := currentTermSize()
+		return tea.WindowSizeMsg{Width: w, Height: h}
+	}
+}
+
+func readTermSize(fd uintptr) (int, int) {
+	w, h, err := term.GetSize(fd)
+	if err != nil || w <= 0 || h <= 0 {
+		return 0, 0
+	}
+	return w, h
+}
+
+func currentTermSize() (int, int) {
+	tty, err := os.Open("/dev/tty")
+	if err == nil {
+		defer tty.Close()
+		if w, h := readTermSize(tty.Fd()); w > 0 && h > 0 {
+			return w, h
+		}
+	}
+	stdinW, stdinH := readTermSize(os.Stdin.Fd())
+	if stdinW > 0 && stdinH > 0 {
+		return stdinW, stdinH
+	}
+	stdoutW, stdoutH := readTermSize(os.Stdout.Fd())
+	if stdoutW > 0 && stdoutH > 0 {
+		return stdoutW, stdoutH
+	}
+	return 0, 0
 }

@@ -29,9 +29,11 @@ var (
 
 // Render returns the dashboard view tailored for compact terminals.
 func Render(s domain.DashboardSnapshot, width, height int) string {
-	_ = height // future dynamic layout usage
 	if width <= 0 {
 		width = 80
+	}
+	if height <= 0 {
+		height = 24
 	}
 	innerWidth := width - 2
 	if innerWidth < 20 {
@@ -39,6 +41,7 @@ func Render(s domain.DashboardSnapshot, width, height int) string {
 	}
 	meterWidth := meterWidthFor(innerWidth)
 	hostWidth := maxInt(8, minInt(16, innerWidth/4))
+	ipWidth := maxInt(7, minInt(18, innerWidth/4))
 	osWidth := maxInt(10, minInt(28, innerWidth/3))
 	kernelWidth := maxInt(8, minInt(20, innerWidth/4))
 	mountWidth := maxInt(4, minInt(12, innerWidth/6))
@@ -55,9 +58,11 @@ func Render(s domain.DashboardSnapshot, width, height int) string {
 		mutedStyle.Render("linux telemetry"),
 	)
 	headerMeta := fmt.Sprintf(
-		"%s %s  %s %s",
+		"%s %s  %s %s  %s %s",
 		labelStyle.Render("host"),
 		valueStyle.Render(clampText(s.Hostname, hostWidth)),
+		labelStyle.Render("ip"),
+		valueStyle.Render(clampText(s.HostIP, ipWidth)),
 		labelStyle.Render("status"),
 		status,
 	)
@@ -143,6 +148,7 @@ func Render(s domain.DashboardSnapshot, width, height int) string {
 		frameContent(help, innerWidth),
 		frameBottom(innerWidth),
 	}
+	body = expandToHeight(body, innerWidth, height)
 	return truncateLines(strings.Join(body, "\n"), width)
 }
 
@@ -327,4 +333,19 @@ func maxInt(a, b int) int {
 		return a
 	}
 	return b
+}
+
+func expandToHeight(lines []string, innerWidth, height int) []string {
+	if height <= len(lines) || len(lines) < 2 {
+		return lines
+	}
+	grow := height - len(lines)
+	insertAt := len(lines) - 1
+	expanded := make([]string, 0, height)
+	expanded = append(expanded, lines[:insertAt]...)
+	for i := 0; i < grow; i++ {
+		expanded = append(expanded, frameContent("", innerWidth))
+	}
+	expanded = append(expanded, lines[insertAt:]...)
+	return expanded
 }
