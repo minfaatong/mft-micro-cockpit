@@ -83,7 +83,11 @@ func (m model) View() string {
 	if m.lastErr != nil {
 		return "collector error: " + m.lastErr.Error() + "\npress q to quit"
 	}
-	return ui.Render(m.snapshot, m.width, m.height)
+	width, height := m.width, m.height
+	if w, h := currentTermSize(); w > 0 && h > 0 {
+		width, height = w, h
+	}
+	return ui.Render(m.snapshot, width, height)
 }
 
 func tickCmd() tea.Cmd {
