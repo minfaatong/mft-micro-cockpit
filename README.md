@@ -5,6 +5,7 @@ Portable Linux TUI monitor inspired by `neofetch` + `htop`, optimized for glance
 ## Current MVP
 - live dashboard refresh every 1 second
 - host, OS, kernel, uptime
+- primary host IPv4 shown in the system panel
 - CPU + load averages
 - memory + swap usage
 - root disk usage

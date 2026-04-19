@@ -10,84 +10,79 @@ import (
 )
 
 var (
-	titleStyle = lipgloss.NewStyle().Bold(true)
-	okStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("2")).Bold(true)
-	warmStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("3")).Bold(true)
-	hotStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("1")).Bold(true)
+	appStyle = lipgloss.NewStyle().Padding(0, 1)
+
+	titleStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("39"))
+	subtle     = lipgloss.NewStyle().Foreground(lipgloss.Color("244"))
+
+	okBadge   = lipgloss.NewStyle().Foreground(lipgloss.Color("46")).Bold(true)
+	warmBadge = lipgloss.NewStyle().Foreground(lipgloss.Color("220")).Bold(true)
+	hotBadge  = lipgloss.NewStyle().Foreground(lipgloss.Color("196")).Bold(true)
+
+	cardStyle = lipgloss.NewStyle().
+			BorderStyle(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("240")).
+			Padding(0, 1)
 )
 
 // Render returns the dashboard view tailored for compact terminals.
 func Render(s domain.DashboardSnapshot, width, height int) string {
-	_ = height // future dynamic layout usage
+	_ = height // reserved for future adaptive layout
 
-	status := styleStatus(s.Status)
-	header := fmt.Sprintf(
-		"micro-cockpit | host: %s | status: %s\nos: %s | kernel: %s\nuptime: %s | ts: %s",
-		s.Hostname,
-		status,
-		s.OSPretty,
-		s.Kernel,
-		formatDuration(s.Uptime),
-		s.CollectedAt.Format("15:04:05"),
-	)
+	title := titleStyle.Render("micro-cockpit")
+	top := fmt.Sprintf("%s  %s  %s", title, styleStatus(s.Status), subtle.Render(s.CollectedAt.Format("15:04:05")))
 
-	cpuLine := fmt.Sprintf(
-		"CPU  %6.2f%%  load %.2f %.2f %.2f",
-		s.CPUPercent, s.Load1, s.Load5, s.Load15,
-	)
-	memLine := fmt.Sprintf(
-		"MEM  %6.2f%%  %s / %s",
-		pct(s.MemUsedBytes, s.MemTotalBytes),
-		bytesHuman(s.MemUsedBytes),
-		bytesHuman(s.MemTotalBytes),
-	)
-	swapLine := fmt.Sprintf(
-		"SWP  %6.2f%%  %s / %s",
-		pct(s.SwapUsedBytes, s.SwapTotalBytes),
-		bytesHuman(s.SwapUsedBytes),
-		bytesHuman(s.SwapTotalBytes),
-	)
-	diskLine := fmt.Sprintf(
-		"DSK  %6.2f%%  %s  %s / %s",
-		s.DiskUsedPercent,
-		s.DiskMount,
-		bytesHuman(s.DiskUsedBytes),
-		bytesHuman(s.DiskTotalBytes),
-	)
-	netLine := fmt.Sprintf(
-		"NET  %-8s rx %s/s  tx %s/s",
-		s.NetInterface,
-		bytesHuman(s.NetRxRate),
-		bytesHuman(s.NetTxRate),
-	)
+	systemLines := []string{
+		fmt.Sprintf("host   %s", s.Hostname),
+		fmt.Sprintf("ip     %s", s.PrimaryIP),
+		fmt.Sprintf("os     %s", s.OSPretty),
+		fmt.Sprintf("kernel %s", s.Kernel),
+		fmt.Sprintf("uptime %s", formatDuration(s.Uptime)),
+	}
 
-	help := "keys: q quit | ctrl+c quit | r refresh"
-
-	body := strings.Join([]string{
-		titleStyle.Render(header),
-		"",
-		cpuLine,
+	resourceLines := []string{
+		fmt.Sprintf("CPU   %6.2f%%  load %.2f %.2f %.2f", s.CPUPercent, s.Load1, s.Load5, s.Load15),
 		bar(pctFromFloat(s.CPUPercent), width),
-		memLine,
+		fmt.Sprintf("MEM   %6.2f%%  %s / %s", pct(s.MemUsedBytes, s.MemTotalBytes), bytesHuman(s.MemUsedBytes), bytesHuman(s.MemTotalBytes)),
 		bar(pct(s.MemUsedBytes, s.MemTotalBytes), width),
-		swapLine,
-		diskLine,
-		netLine,
-		"",
-		help,
-	}, "\n")
+		fmt.Sprintf("SWAP  %6.2f%%  %s / %s", pct(s.SwapUsedBytes, s.SwapTotalBytes), bytesHuman(s.SwapUsedBytes), bytesHuman(s.SwapTotalBytes)),
+	}
 
-	return truncateLines(body, width)
+	infraLines := []string{
+		fmt.Sprintf("DISK  %6.2f%%  %s  %s / %s", s.DiskUsedPercent, s.DiskMount, bytesHuman(s.DiskUsedBytes), bytesHuman(s.DiskTotalBytes)),
+		fmt.Sprintf("NET   %-8s  rx %s/s  tx %s/s", s.NetInterface, bytesHuman(s.NetRxRate), bytesHuman(s.NetTxRate)),
+	}
+
+	systemCard := renderCard("system", strings.Join(systemLines, "\n"), width)
+	resourceCard := renderCard("resources", strings.Join(resourceLines, "\n"), width)
+	infraCard := renderCard("infra", strings.Join(infraLines, "\n"), width)
+
+	help := subtle.Render("keys: q quit | ctrl+c quit | r refresh")
+
+	body := strings.Join([]string{top, "", systemCard, resourceCard, infraCard, help}, "\n")
+	out := appStyle.Render(body)
+	return truncateLines(out, width)
+}
+
+func renderCard(title, content string, width int) string {
+	header := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("45")).Render(strings.ToUpper(title))
+	cardText := header + "\n" + content
+	w := width - 4
+	if w < 36 {
+		w = 36
+	}
+	return cardStyle.Width(w).Render(cardText)
 }
 
 func styleStatus(status string) string {
+	label := strings.ToUpper(status)
 	switch status {
 	case "hot":
-		return hotStyle.Render(strings.ToUpper(status))
+		return hotBadge.Render("[" + label + "]")
 	case "warm":
-		return warmStyle.Render(strings.ToUpper(status))
+		return warmBadge.Render("[" + label + "]")
 	default:
-		return okStyle.Render(strings.ToUpper(status))
+		return okBadge.Render("[" + label + "]")
 	}
 }
 
@@ -119,16 +114,15 @@ func pctFromFloat(v float64) float64 {
 }
 
 func bar(percent float64, width int) string {
-	w := 30
+	w := 24
 	if width > 0 {
-		if width-10 < w {
-			w = width - 10
+		if width-24 < w {
+			w = width - 24
 		}
 		if w < 10 {
 			w = 10
 		}
 	}
-
 	filled := int((percent / 100) * float64(w))
 	if filled < 0 {
 		filled = 0
@@ -136,8 +130,7 @@ func bar(percent float64, width int) string {
 	if filled > w {
 		filled = w
 	}
-
-	return fmt.Sprintf("[%s%s] %5.1f%%", strings.Repeat("#", filled), strings.Repeat("-", w-filled), percent)
+	return fmt.Sprintf("      [%s%s] %5.1f%%", strings.Repeat("#", filled), strings.Repeat("-", w-filled), percent)
 }
 
 func bytesHuman(b uint64) string {

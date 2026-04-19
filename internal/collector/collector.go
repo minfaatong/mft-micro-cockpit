@@ -60,10 +60,12 @@ func (c *Collector) Snapshot() (domain.DashboardSnapshot, error) {
 	if err != nil {
 		iface = "n/a"
 	}
+	primaryIP := c.readPrimaryIP(iface)
 
 	s := domain.DashboardSnapshot{
 		CollectedAt:     now,
 		Hostname:        fallback(hostname, "unknown"),
+		PrimaryIP:       fallback(primaryIP, "n/a"),
 		OSPretty:        fallback(osPretty, "linux"),
 		Kernel:          fallback(kernel, "unknown"),
 		Uptime:          uptime,
@@ -86,6 +88,62 @@ func (c *Collector) Snapshot() (domain.DashboardSnapshot, error) {
 	s.Status = deriveStatus(s)
 
 	return s, nil
+}
+
+func (c *Collector) readPrimaryIP(activeIface string) string {
+	if activeIface != "" && activeIface != "n/a" {
+		if ip := interfaceIPv4(activeIface); ip != "" {
+			return ip
+		}
+	}
+	if c.lastIface != "" {
+		if ip := interfaceIPv4(c.lastIface); ip != "" {
+			return ip
+		}
+	}
+
+	interfaces, err := net.Interfaces()
+	if err != nil {
+		return ""
+	}
+	for _, ifc := range interfaces {
+		if ifc.Flags&net.FlagUp == 0 || ifc.Flags&net.FlagLoopback != 0 {
+			continue
+		}
+		if ip := interfaceIPv4(ifc.Name); ip != "" {
+			return ip
+		}
+	}
+	return ""
+}
+
+func interfaceIPv4(name string) string {
+	ifc, err := net.InterfaceByName(name)
+	if err != nil {
+		return ""
+	}
+	addrs, err := ifc.Addrs()
+	if err != nil {
+		return ""
+	}
+	for _, addr := range addrs {
+		var ip net.IP
+		switch v := addr.(type) {
+		case *net.IPNet:
+			ip = v.IP
+		case *net.IPAddr:
+			ip = v.IP
+		}
+		if ip == nil {
+			continue
+		}
+		ipv4 := ip.To4()
+		if ipv4 == nil || ipv4.IsLoopback() {
+			continue
+		}
+		return ipv4.String()
+	}
+	return ""
 }
 
 func deriveStatus(s domain.DashboardSnapshot) string {
