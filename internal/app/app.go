@@ -36,7 +36,7 @@ func newModel() model {
 }
 
 func (m model) Init() tea.Cmd {
-	return tea.Batch(tickCmd(), collectCmd(m.collector))
+	return tea.Batch(tickCmd(), collectCmd(m.collector), tea.WindowSize())
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -53,7 +53,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, collectCmd(m.collector)
 		}
 	case tickMsg:
-		return m, tea.Batch(tickCmd(), collectCmd(m.collector))
+		return m, tea.Batch(tickCmd(), collectCmd(m.collector), tea.WindowSize())
 	case snapshotMsg:
 		m.lastErr = msg.err
 		if msg.err == nil {
