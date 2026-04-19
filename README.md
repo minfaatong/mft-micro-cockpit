@@ -13,7 +13,7 @@ Portable Linux TUI monitor inspired by `neofetch` + `htop`, optimized for glance
 
 ## Requirements
 - Linux (uses `/proc` and `statfs`)
-- Go `1.22+`
+- Go `1.24+`
 
 ## Run
 
