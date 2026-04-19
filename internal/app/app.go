@@ -1,9 +1,11 @@
 package app
 
 import (
+	"os"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/x/term"
 	"github.com/minfaatong/mft-micro-cockpit/internal/collector"
 	"github.com/minfaatong/mft-micro-cockpit/internal/domain"
 	"github.com/minfaatong/mft-micro-cockpit/internal/ui"
@@ -68,7 +70,12 @@ func (m model) View() string {
 	if m.lastErr != nil {
 		return "collector error: " + m.lastErr.Error() + "\npress q to quit"
 	}
-	return ui.Render(m.snapshot, m.width, m.height)
+	width, height := m.width, m.height
+	// Fallback to direct tty query when resize events are delayed/missed.
+	if w, h, err := term.GetSize(os.Stdout.Fd()); err == nil && w > 0 && h > 0 {
+		width, height = w, h
+	}
+	return ui.Render(m.snapshot, width, height)
 }
 
 func tickCmd() tea.Cmd {
