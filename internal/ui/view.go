@@ -145,10 +145,10 @@ func Render(s domain.DashboardSnapshot, width, height int) string {
 		frameContent(diskLine, innerWidth),
 		frameContent(netLine, innerWidth),
 		frameSep(innerWidth),
-		frameContent(help, innerWidth),
-		frameBottom(innerWidth),
-	}
-	body = expandToHeight(body, innerWidth, height)
+}
+	body = expandToHeight(body, innerWidth, height-2)
+		body = append(body, frameContent(help, innerWidth))
+		body = append(body, frameBottom(innerWidth))
 	return truncateLines(strings.Join(body, "\n"), width)
 }
 
