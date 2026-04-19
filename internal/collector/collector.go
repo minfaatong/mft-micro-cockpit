@@ -40,6 +40,7 @@ func (c *Collector) Snapshot() (domain.DashboardSnapshot, error) {
 	now := time.Now()
 
 	hostname, _ := os.Hostname()
+	hostIP := hostIPv4()
 	osPretty, _ := osPrettyName()
 	kernel, _ := kernelVersion()
 	uptime, _ := readUptime()
@@ -64,6 +65,7 @@ func (c *Collector) Snapshot() (domain.DashboardSnapshot, error) {
 	s := domain.DashboardSnapshot{
 		CollectedAt:     now,
 		Hostname:        fallback(hostname, "unknown"),
+		HostIP:          fallback(hostIP, "n/a"),
 		OSPretty:        fallback(osPretty, "linux"),
 		Kernel:          fallback(kernel, "unknown"),
 		Uptime:          uptime,
@@ -393,4 +395,34 @@ func kernelVersion() (string, error) {
 		return "", fmt.Errorf("read kernel osrelease: %w", err)
 	}
 	return strings.TrimSpace(string(raw)), nil
+}
+
+func hostIPv4() string {
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		return ""
+	}
+
+	for _, ifc := range ifaces {
+		if ifc.Flags&net.FlagUp == 0 || ifc.Flags&net.FlagLoopback != 0 {
+			continue
+		}
+		addrs, err := ifc.Addrs()
+		if err != nil {
+			continue
+		}
+		for _, addr := range addrs {
+			switch v := addr.(type) {
+			case *net.IPNet:
+				if ip := v.IP.To4(); ip != nil && !ip.IsLoopback() {
+					return ip.String()
+				}
+			case *net.IPAddr:
+				if ip := v.IP.To4(); ip != nil && !ip.IsLoopback() {
+					return ip.String()
+				}
+			}
+		}
+	}
+	return ""
 }
