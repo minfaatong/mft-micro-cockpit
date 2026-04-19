@@ -4,7 +4,7 @@ Portable Linux TUI monitor inspired by `neofetch` + `htop`, optimized for glance
 
 ## Screenshot
 
-![mft-micro-cockpit dashboard with ASCII box-drawing styling](docs/images/ascii_htop_btop_refresh_frame.webp)
+![mft-micro-cockpit dashboard with ASCII box-drawing styling](docs/images/ascii_htop_btop_refresh_frame.png)
 
 ## Current MVP
 - live dashboard refresh every 1 second
